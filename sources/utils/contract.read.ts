@@ -1,6 +1,6 @@
 import { Address, contractAddress} from "@ton/core";
 import { TonClient4 } from "@ton/ton";
-import { SampleTactContract } from "./output/sample_SampleTactContract";
+import { SampleTactContract } from "../output/sample_SampleTactContract";
 
 (async () => {
     const client = new TonClient4({

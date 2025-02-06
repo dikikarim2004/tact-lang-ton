@@ -1,8 +1,8 @@
 import { toNano } from "@ton/core";
 import { Blockchain } from "@ton/sandbox";
 import "@ton/test-utils";
-import { SampleTactContract } from "./output/sample_SampleTactContract";
-import { findErrorCodeByMessage } from './utils/error';
+import { SampleTactContract } from "../output/sample_SampleTactContract";
+import { findErrorCodeByMessage } from './error';
 
 describe("contract", () => {
     it("should deploy correctly", async () => {
