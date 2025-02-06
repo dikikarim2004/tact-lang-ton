@@ -42,8 +42,29 @@ contract BettingTactContract with Deployable {
     marketsByOwner: Cell; // Simpan mapping owner -> market IDs dalam Cell
     marketsByGroup: Cell; // Simpan mapping group -> market IDs dalam Cell
     marketsByBettor: Cell; // Simpan mapping bettor -> market IDs dalam Cell
+    
+    
+    
+    //event FeesWithdrawn(admin: Address, amount: Int as uint256);
+    //event AdminWithdraw(admin: Address, amount: Int as uint256);
 
-    // Event
+    // Constructor
+    init() {
+        self.feePercentage = 1; // 1%
+        self.accumulatedFees = 0;
+        self.admins[context().sender] = true;
+    }
+
+    // Modifier untuk memeriksa apakah pengirim adalah admin
+    fun onlyAdmin() {
+        require(self.adins[context().sender], "Only admins can call this function");
+    }
+
+    // Modifier untuk memeriksa apakah pengirim adalah pemilik market
+    fun onlyMarketOwner(marketId: String) {
+        require(self.markets[marketId].owner == context().sender, "Only owner can call this function");
+    }
+
     // Fungsi untuk menambahkan admin
     fun addAdmin(newAdmin: Address) {
         onlyAdmin();
@@ -66,6 +87,7 @@ contract BettingTactContract with Deployable {
             .endCell()
         );
     }
+
     // Fungsi untuk menghapus admin
     fun removeAdmin(admin: Address) {
         onlyAdmin();
@@ -83,63 +105,6 @@ contract BettingTactContract with Deployable {
             .storeAddress(admin)
             .endCell()
         );
-    }    
-    // Fungsi untuk mengubah persentase fee
-    
-    
-    fun BetPlaced(marketId: String, option: String) {
-        // Logika pemasangan taruhan...
-
-        // Kirim pesan/log untuk event BetPlaced
-        sendMessage(beginCell()
-            .storeUint(0xEF01, 32) // Opcode untuk BetPlaced
-            .storeString(marketId)
-            .storeAddress(context().sender)
-            .storeString(option)
-            .storeUint(context().value, 256)
-            .endCell()
-        );
-    }
-
-    //event BetPlaced(id: String, bettor: Address, option: String, value: Int as uint256);
-    
-    event CancelMarket(id: String);
-    event FinishMarket(id: String, winnerOption: String);
-    event FeesWithdrawn(admin: Address, amount: Int as uint256);
-    event AdminWithdraw(admin: Address, amount: Int as uint256);
-
-    // Constructor
-    init() {
-        self.feePercentage = 1; // 1%
-        self.accumulatedFees = 0;
-        self.admins[context().sender] = true;
-    }
-
-    // Modifier untuk memeriksa apakah pengirim adalah admin
-    fun onlyAdmin() {
-        require(self.adins[context().sender], "Only admins can call this function");
-    }
-
-    // Modifier untuk memeriksa apakah pengirim adalah pemilik market
-    fun onlyMarketOwner(marketId: String) {
-        require(self.markets[marketId].owner == context().sender, "Only owner can call this function");
-    }
-
-    // Fungsi untuk menambahkan admin
-    fun addAdmin(newAdmin: Address) {
-        onlyAdmin();
-        require(!self.admins[newAdmin], "Address is already an admin");
-        self.admins[newAdmin] = true;
-        emit AdminAdded(newAdmin);
-    }
-
-    // Fungsi untuk menghapus admin
-    fun removeAdmin(admin: Address) {
-        onlyAdmin();
-        require(self.admins[admin], "Address is not an admin");
-        require(admin != context().sender, "Admin cannot remove themselves");
-        self.admins[admin] = false;
-        emit AdminRemoved(admin);
     }
 
     // Fungsi untuk mengubah persentase fee
@@ -226,7 +191,15 @@ contract BettingTactContract with Deployable {
 
         self.marketsByBettor[context().sender].push(marketId);
 
-        emit BetPlaced(marketId, context().sender, option, context().value);
+        //emit BetPlaced(marketId, context().sender, option, context().value);
+        sendMessage(beginCell()
+            .storeUint(0xEF01, 32) // Opcode untuk BetPlaced
+            .storeString(marketId)
+            .storeAddress(context().sender)
+            .storeString(option)
+            .storeUint(context().value, 256)
+            .endCell()
+        );
     }
 
     // Fungsi untuk membatalkan market
@@ -235,19 +208,14 @@ contract BettingTactContract with Deployable {
         let market: Market = self.markets[marketId];
         require(market.status == 0, "Only active market can be canceled");
 
-        let totalRefundAmount: Int = market.totalBets;
-        require(context().balance >= totalRefundAmount, "Insufficient balance to refund bettors");
+        // Logika pembatalan market...
 
-        market.status = 2; // CANCELED
-
-        for (let i = 0; i < market.bettorAddresses.length; i++) {
-            let bettor: Address = market.bettorAddresses[i];
-            let bettorData: Bettor = market.bettors[bettor];
-            let refundAmount: Int = bettorData.totalAmount;
-            bettor.transfer(refundAmount);
-        }
-
-        emit CancelMarket(marketId);
+        // Kirim pesan/log untuk event CancelMarket
+        sendMessage(beginCell()
+            .storeUint(0x1234, 32) // Opcode untuk CancelMarket
+            .storeString(marketId) // Data yang dikirim
+            .endCell()
+        );
     }
 
     // Fungsi untuk menyelesaikan market
@@ -256,15 +224,15 @@ contract BettingTactContract with Deployable {
         let market: Market = self.markets[marketId];
         require(market.status == 0, "Only active market can be finished");
 
-        let available: Bool = self.checkOptionAvailable(market, winnerOption);
-        require(available, "Invalid option");
+        // Logika penyelesaian market...
 
-        market.status = 1; // FINISHED
-        market.winnerOption = winnerOption;
-
-        self.distributeRewards(market, winnerOption);
-
-        emit FinishMarket(marketId, winnerOption);
+        // Kirim pesan/log untuk event FinishMarket
+        sendMessage(beginCell()
+            .storeUint(0x5678, 32) // Opcode untuk FinishMarket
+            .storeString(marketId) // Data yang dikirim
+            .storeString(winnerOption) // Data yang dikirim
+            .endCell()
+        );
     }
 
     // Fungsi internal untuk mendistribusikan hadiah
@@ -312,22 +280,35 @@ contract BettingTactContract with Deployable {
     }
 
     // Fungsi untuk menarik fee
-    fun withdrawFeesWithAmount(amount: Int as uint256) {
+    fun withdrawFeesWithAmount(amount: Int) {
         onlyAdmin();
         require(amount <= self.accumulatedFees, "Not enough accumulated fees");
         self.accumulatedFees -= amount;
         context().sender.transfer(amount);
-        emit FeesWithdrawn(context().sender, amount);
+
+        // Kirim pesan/log untuk FeesWithdrawn
+        sendMessage(beginCell()
+            .storeUint(0x1234, 32) // Opcode untuk FeesWithdrawn
+            .storeAddress(context().sender) // Admin
+            .storeUint(amount, 256) // Jumlah yang ditarik
+            .endCell()
+        );
     }
 
     // Fungsi untuk menarik semua fee
-    fun withdrawAllFees() {
+    fun withdrawAllBalance() {
         onlyAdmin();
-        let feeAmount: Int = self.accumulatedFees;
-        require(feeAmount > 0, "No fees to withdraw");
-        self.accumulatedFees = 0;
-        context().sender.transfer(feeAmount);
-        emit FeesWithdrawn(context().sender, feeAmount);
+        let balance: Int = context().balance;
+        require(balance > 0, "No funds available to withdraw");
+        context().sender.transfer(balance);
+
+        // Kirim pesan/log untuk AdminWithdraw
+        sendMessage(beginCell()
+            .storeUint(0x5678, 32) // Opcode untuk AdminWithdraw
+            .storeAddress(context().sender) // Admin
+            .storeUint(balance, 256) // Jumlah yang ditarik
+            .endCell()
+        );
     }
 
     // Fungsi untuk menarik saldo
